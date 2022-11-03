@@ -6,7 +6,7 @@
 - `python PA2.py`
 
 ### There will be an output file named 'output.txt' containing the corresponding output from running the program.
-### NOTE: This program will take considerable time to produce all output.
+### NOTE: This program will take considerable time to produce all output. It took my machine 40 minutes to complete.
 
 ### Python imports used:
 - pandas

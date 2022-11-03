@@ -1,6 +1,10 @@
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 
+# Programming Assignment 2
+# CS 315
+# Written by Amethyst Skye
+
 # Read in ratings.csv
 ratings = pd.read_csv('movie-lens-data/ratings.csv')
 
