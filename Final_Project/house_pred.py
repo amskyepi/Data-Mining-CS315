@@ -5,15 +5,15 @@ import statistics
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn import svm
 from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn import svm
 from sklearn.metrics import mean_absolute_percentage_error
 
 
 # Reads data file and prepocesses data for training
-def read_and_clean(file_name):
+def read_and_clean(file_name, price_lower_thresh, price_upper_thresh):
     # Open file
     df = pd.read_csv(file_name)
     
@@ -24,14 +24,22 @@ def read_and_clean(file_name):
     df['ORIGINAL SALE AMOUNT'] = df['ORIGINAL SALE AMOUNT'].values.astype(str)
     df['ORIGINAL SALE AMOUNT'] = df['ORIGINAL SALE AMOUNT'].map(lambda x: str(x.lstrip('$'))).str.replace(',', '')
     
-    # Categorical data -> numerical data
-    df['STYLE'].replace(['1.5 FINISHED', 
-                         '2 STORY', 
-                         'RANCH', 
-                         'BI-LEVEL (SPLIT ENTRY)', 
-                         'SPLIT'], [1, 2, 3, 4, 5], inplace = True)
+    # Drop rows with empty values for specified columns
+    df = df.dropna(axis = 0, subset = [' YEAR BUILT', 
+                                       'STYLE',
+                                       'QUALITY digital',
+                                       'PARCEL SIZE ACRES',
+                                       'MAIN AND UPPER LIVING AREA',])
     
     # One Hot Encoding for categorical data
+    # Categorical data -> numerical data
+    
+    # Home style column needs to be encoded                       
+    style_one_hot_encoder = OneHotEncoder()
+    style_results = style_one_hot_encoder.fit_transform(df[['STYLE']])
+    df = df.join(pd.DataFrame(style_results.toarray(), columns = style_one_hot_encoder.categories_))
+    
+    # List of areas we are including in our dataset
     area_list = ['YACOLT', 
                 'AMBOY', 
                 'LA CENTER', 
@@ -43,23 +51,16 @@ def read_and_clean(file_name):
                 'CAMAS',
                 'WASHOUGAL']
 
+    # Only include addresses with these city names
     for item in area_list:
         df.loc[df['Parcel Address'].str.contains(item, na = False), 'Parcel Address'] = item    
     
-    one_hot_encoder = OneHotEncoder()
-    results = one_hot_encoder.fit_transform(df[['Parcel Address']])
-    df = df.join(pd.DataFrame(results.toarray(), columns = one_hot_encoder.categories_))
+    # Home area column needs to be encoded
+    area_one_hot_encoder = OneHotEncoder()
+    area_results = area_one_hot_encoder.fit_transform(df[['Parcel Address']])
+    df = df.join(pd.DataFrame(area_results.toarray(), columns = area_one_hot_encoder.categories_))
     
-    # Drop rows with empty values for specified columns
-    df = df.dropna(axis = 0, subset = [' YEAR BUILT', 
-                                       'STYLE',
-                                       'QUALITY digital',
-                                       'PARCEL SIZE ACRES',
-                                       'MAIN AND UPPER LIVING AREA',])
-    
-    df['PID'] = df['PID'].values.astype(int)
-    df[' YEAR BUILT'] = df[' YEAR BUILT'].values.astype(int)
-    df['MAIN AND UPPER LIVING AREA'] = df['MAIN AND UPPER LIVING AREA'].values.astype(int)
+    # Ensuring we have the right data type for training/testing
     df['ORIGINAL SALE AMOUNT'] = df['ORIGINAL SALE AMOUNT'].values.astype(int)
     
     # Drop unwanted columns
@@ -75,13 +76,15 @@ def read_and_clean(file_name):
                             'SALE DATE', 
                             'ASSESSOR NH (REFERENCE NO)'])
     
+    # Original sale amount must be last column
     df.insert(len(df.columns) - 1, 'ORIGINAL SALE AMOUNT', df.pop('ORIGINAL SALE AMOUNT'))
     
     # Do not include houses that are priced above the defined threshold
-    upper_limit = 500000
-    lower_limit = 0
-    df = df[df['ORIGINAL SALE AMOUNT'] < upper_limit]
-    df = df[df['ORIGINAL SALE AMOUNT'] > lower_limit]
+    df = df[df['ORIGINAL SALE AMOUNT'] < price_upper_thresh]
+    df = df[df['ORIGINAL SALE AMOUNT'] > price_lower_thresh]
+    
+    # Drop any rows with NaN
+    df = df.dropna()
     
     return(df)
 
@@ -104,19 +107,7 @@ def train_test_splitting(df):
     x_test = sc.transform(x_test)
     return(x_train, x_test, y_train, y_test)
 
-# Decision Tree Algorithm
-def decision_tree_learner(x_train, x_test, y_train, y_test):    
-    # Training Decision Tree Classification model on training set
-    print("Training...")
-    classifier = DecisionTreeClassifier(criterion = 'entropy', random_state = 0)
-    classifier.fit(x_train, y_train)
-    
-    # Predicting test set results
-    print("Testing...")
-    y_pred = classifier.predict(x_test)
-    
-    return(y_pred, y_test)
-
+# Support Vector Machine Implementation
 # SVM Learning Algorithm
 def svm_learner(x_train, x_test, y_train, y_test):
     # Training SVM model on training set
@@ -130,6 +121,7 @@ def svm_learner(x_train, x_test, y_train, y_test):
     
     return(y_pred, y_test)
 
+# Linear Regression Implementation
 def linear_reg_learner(x_train, x_test, y_train, y_test):
     # Training Linear Regression model on training set
     print("Training...")
@@ -142,10 +134,24 @@ def linear_reg_learner(x_train, x_test, y_train, y_test):
     
     return (y_pred, y_test)
 
+# Decision Tree Implementation
+def decision_tree_learner(x_train, x_test, y_train, y_test):    
+    # Training Decision Tree Regression model on training set
+    print("Training...")
+    classifier = DecisionTreeRegressor(random_state = 0)
+    classifier.fit(x_train, y_train)
+    
+    # Predicting test set results
+    print("Testing...")
+    y_pred = classifier.predict(x_test)
+    
+    return(y_pred, y_test)
+
+# Random Forest Implementation
 def random_forest_learner(x_train, x_test, y_train, y_test):
     # Training Random Forest model on training set
     print("Training...")
-    classifier = RandomForestClassifier(n_estimators = 10, criterion = 'entropy', random_state = 0)
+    classifier = RandomForestRegressor(random_state = 0)
     classifier.fit(x_train, y_train)
     
     # Predicting test set results
@@ -156,10 +162,10 @@ def random_forest_learner(x_train, x_test, y_train, y_test):
 
 def learning_analysis(y_pred, y_test):
     y_pred = y_pred.round()
-    # Analysis
     diff_vec = []
     diff_over = []
     diff_under = []
+    
     for i in range(0,len(y_pred)):
         ratio_diff = y_pred[i] / y_test[i]
         diff_vec.append(ratio_diff)
@@ -167,6 +173,7 @@ def learning_analysis(y_pred, y_test):
             diff_under.append(y_pred[i] - y_test[i])
         else:
             diff_over.append(y_pred[i] - y_test[i])
+            
     print("\nPrediction results: ")
     print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1), "\n")
     print("Mean Absolute Error: ")
@@ -178,6 +185,7 @@ def learning_analysis(y_pred, y_test):
     print("Under-predictions: ")
     print("Average =", statistics.mean(diff_under), ", Count:", len(diff_under), "\n")
     x_axis = []
+    
     for i in range(1, len(y_pred) + 1):
         x_axis.append(i)
         
@@ -206,12 +214,25 @@ def learning_analysis(y_pred, y_test):
     return
 
 def main():
-    house_df = read_and_clean('Data/housing_data.csv')
+    # Import and clean data
+    house_df = read_and_clean('Data/housing_data.csv', 0, 500000)
     house_df.to_csv('Data/clean_house.csv', sep=',')
+    
+    # Create training and testing sets
     x_train, x_test, y_train, y_test = train_test_splitting(house_df)
-    #y_pred, y_test = decision_tree_learner(x_train, x_test, y_train, y_test)
+    
+    # --- ML Model implementation Options --- #
+    
+    # 1. Linear Regression
     #y_pred, y_test = linear_reg_learner(x_train, x_test, y_train, y_test)
+    
+    # 2. Decision Tree
+    #y_pred, y_test = decision_tree_learner(x_train, x_test, y_train, y_test)
+    
+    # 3. Random Forest
     y_pred, y_test = random_forest_learner(x_train, x_test, y_train, y_test)
+    
+    # Analyze results of model usage
     learning_analysis(y_pred, y_test)
     
 if __name__ == "__main__":
