@@ -1,3 +1,8 @@
+# CS 315 - Data Mining
+# Final Project
+# Author: Amethyst Skye
+# Language: Python
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -99,6 +104,8 @@ def train_test_splitting(df):
     
     # Splitting dataset into training/testing
     print("Processing Data...")
+    # Training data = 80%
+    # Testing data = 20%
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
     
     # Feature Scaling
@@ -174,6 +181,8 @@ def learning_analysis(y_pred, y_test):
         else:
             diff_over.append(y_pred[i] - y_test[i])
             
+    # Pred Matrix:
+    # [[Predicted Actual]]
     print("\nPrediction results: ")
     print(np.concatenate((y_pred.reshape(len(y_pred), 1), y_test.reshape(len(y_test), 1)), 1), "\n")
     print("Mean Absolute Error: ")
@@ -183,21 +192,13 @@ def learning_analysis(y_pred, y_test):
     print("Over-predictions: ")
     print("Average =", statistics.mean(diff_over), ", Count:", len(diff_over), "\n")
     print("Under-predictions: ")
-    print("Average =", statistics.mean(diff_under), ", Count:", len(diff_under), "\n")
+    print("Average =", statistics.mean(diff_under), ", Count:", len(diff_under))
     x_axis = []
     
     for i in range(1, len(y_pred) + 1):
         x_axis.append(i)
         
-    # Data Visualization
-    '''plt.plot(x_axis, y_pred - y_test, label = "Difference")
-    plt.title('Prediction vs. Actual', fontsize = 14)
-    plt.xlabel('Index', fontsize = 14)
-    plt.ylabel('Difference in Prediction vs Actual (in Million $)', fontsize = 14)
-    plt.grid(True)
-    plt.legend()
-    plt.show()'''
-    
+    # Data Visualization    
     plt.figure(figsize=(10,10))
     plt.scatter(y_test, y_pred, c = 'crimson')
     plt.yscale('linear')
@@ -216,6 +217,8 @@ def learning_analysis(y_pred, y_test):
 def main():
     # Import and clean data
     house_df = read_and_clean('Data/housing_data.csv', 0, 500000)
+    
+    # Copy of clean dataset
     house_df.to_csv('Data/clean_house.csv', sep=',')
     
     # Create training and testing sets
@@ -229,7 +232,7 @@ def main():
     # 2. Decision Tree
     #y_pred, y_test = decision_tree_learner(x_train, x_test, y_train, y_test)
     
-    # 3. Random Forest
+    # 3. Random Forest (this model yielded the best prediction results)
     y_pred, y_test = random_forest_learner(x_train, x_test, y_train, y_test)
     
     # Analyze results of model usage
